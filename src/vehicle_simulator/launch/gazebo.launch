@@ -1,0 +1,17 @@
+<launch>
+  <arg name="world_name" default="garage"/>
+  <arg name="vehicleHeight" default="0.75"/>
+  <arg name="cameraOffsetZ" default="0"/>
+  <arg name="vehicleX" default="0"/>
+  <arg name="vehicleY" default="0"/>
+  <arg name="terrainZ" default="0"/>
+  <arg name="vehicleYaw" default="0"/>
+  <arg name="gazebo_gui" default="false"/>
+  <arg name="checkTerrainConn" default="true"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch" >
+    <arg name="gui" value="true"/>
+    <arg name="world_name" value="$(find vehicle_simulator)/world/garage.world"/>
+  </include>
+
+</launch>

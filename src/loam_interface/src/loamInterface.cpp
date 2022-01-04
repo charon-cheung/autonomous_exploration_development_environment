@@ -16,7 +16,6 @@
 
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
-
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
@@ -63,22 +62,25 @@ void odometryHandler(const nav_msgs::Odometry::ConstPtr& odom)
   }
 
   // publish odometry messages
-  odomData.header.frame_id = "map";
-  odomData.child_frame_id = "sensor";
+  odomData.header.frame_id = "/map";
+  odomData.child_frame_id = "/sensor";
   pubOdometryPointer->publish(odomData);
 
   // publish tf messages
   odomTrans.stamp_ = odom->header.stamp;
-  odomTrans.frame_id_ = "map";
-  odomTrans.child_frame_id_ = "sensor";
+  odomTrans.frame_id_ = "/map";
+  odomTrans.child_frame_id_ = "/sensor";
   odomTrans.setRotation(tf::Quaternion(geoQuat.x, geoQuat.y, geoQuat.z, geoQuat.w));
   odomTrans.setOrigin(tf::Vector3(odomData.pose.pose.position.x, odomData.pose.pose.position.y, odomData.pose.pose.position.z));
 
   if (sendTF) {
+    //ROS_INFO("sending tf");	 
     if (!reverseTF) {
+      //ROS_INFO("sending map ---> sensor");
       tfBroadcasterPointer->sendTransform(odomTrans);
-    } else {
-      tfBroadcasterPointer->sendTransform(tf::StampedTransform(odomTrans.inverse(), odom->header.stamp, "sensor", "map"));
+    }
+    else {
+      tfBroadcasterPointer->sendTransform(tf::StampedTransform(odomTrans.inverse(), odom->header.stamp, "/sensor", "/map"));
     }
   }
 }
@@ -102,7 +104,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudIn)
   sensor_msgs::PointCloud2 laserCloud2;
   pcl::toROSMsg(*laserCloud, laserCloud2);
   laserCloud2.header.stamp = laserCloudIn->header.stamp;
-  laserCloud2.header.frame_id = "map";
+  laserCloud2.header.frame_id = "/map";
   pubLaserCloudPointer->publish(laserCloud2);
 }
 
@@ -121,7 +123,7 @@ int main(int argc, char** argv)
 
   ros::Subscriber subOdometry = nh.subscribe<nav_msgs::Odometry> (stateEstimationTopic, 5, odometryHandler);
 
-  ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2> (registeredScanTopic, 5, laserCloudHandler);
+  ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2> (registeredScanTopic, 1, laserCloudHandler);
 
   ros::Publisher pubOdometry = nh.advertise<nav_msgs::Odometry> ("/state_estimation", 5);
   pubOdometryPointer = &pubOdometry;

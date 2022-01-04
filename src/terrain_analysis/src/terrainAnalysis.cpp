@@ -53,12 +53,13 @@ double minRelZ = -1.5;
 double maxRelZ = 0.2;
 double disRatioZ = 0.2;
 
-// terrain voxel parameters
+// terrain voxel parameters  全写死了
 float terrainVoxelSize = 1.0;
 int terrainVoxelShiftX = 0;
 int terrainVoxelShiftY = 0;
 const int terrainVoxelWidth = 21;
 int terrainVoxelHalfWidth = (terrainVoxelWidth - 1) / 2;
+
 const int terrainVoxelNum = terrainVoxelWidth * terrainVoxelWidth;
 
 // planar voxel parameters
@@ -104,7 +105,8 @@ float sinVehicleYaw = 0, cosVehicleYaw = 0;
 pcl::VoxelGrid<pcl::PointXYZI> downSizeFilter;
 
 // state estimation callback function
-void odometryHandler(const nav_msgs::Odometry::ConstPtr &odom) {
+void odometryHandler(const nav_msgs::Odometry::ConstPtr &odom)
+{
   double roll, pitch, yaw;
   geometry_msgs::Quaternion geoQuat = odom->pose.pose.orientation;
   tf::Matrix3x3(tf::Quaternion(geoQuat.x, geoQuat.y, geoQuat.z, geoQuat.w))
@@ -123,22 +125,26 @@ void odometryHandler(const nav_msgs::Odometry::ConstPtr &odom) {
   cosVehiclePitch = cos(vehiclePitch);
   sinVehicleYaw = sin(vehicleYaw);
   cosVehicleYaw = cos(vehicleYaw);
-
-  if (noDataInited == 0) {
+  // 先记下初始位置，之后不进入这里了
+  if (noDataInited == 0)
+  {
     vehicleXRec = vehicleX;
     vehicleYRec = vehicleY;
     noDataInited = 1;
   }
-  if (noDataInited == 1) {
+  // 一直计算当前位置和初始位置的距离
+  if (noDataInited == 1)
+  {
     float dis = sqrt((vehicleX - vehicleXRec) * (vehicleX - vehicleXRec) +
                      (vehicleY - vehicleYRec) * (vehicleY - vehicleYRec));
-    if (dis >= noDecayDis)
+    if (dis >= noDecayDis)   // 默认 4
       noDataInited = 2;
   }
 }
 
 // registered laser scan callback function
-void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloud2) {
+void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloud2)
+{
   laserCloudTime = laserCloud2->header.stamp.toSec();
 
   if (!systemInited) {
@@ -151,8 +157,10 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloud2) {
 
   pcl::PointXYZI point;
   laserCloudCrop->clear();
+
   int laserCloudSize = laserCloud->points.size();
-  for (int i = 0; i < laserCloudSize; i++) {
+  for (int i = 0; i < laserCloudSize; i++)
+  {
     point = laserCloud->points[i];
 
     float pointX = point.x;
@@ -160,22 +168,25 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloud2) {
     float pointZ = point.z;
 
     float dis = sqrt((pointX - vehicleX) * (pointX - vehicleX) +
-                     (pointY - vehicleY) * (pointY - vehicleY));
+                     (pointY - vehicleY) * (pointY - vehicleY)  );
+    // 问题是 vehicleZ 目前一直为0
     if (pointZ - vehicleZ > minRelZ - disRatioZ * dis &&
         pointZ - vehicleZ < maxRelZ + disRatioZ * dis &&
-        dis < terrainVoxelSize * (terrainVoxelHalfWidth + 1)) {
+        dis < terrainVoxelSize * (terrainVoxelHalfWidth + 1)  )
+    {
       point.x = pointX;
       point.y = pointY;
       point.z = pointZ;
+      // 这里的intensity不是真的强度，而是赋值为时间差
       point.intensity = laserCloudTime - systemInitTime;
+      // 加入到 laserCloudCrop
       laserCloudCrop->push_back(point);
     }
   }
-
   newlaserCloud = true;
 }
 
-// joystick callback function
+// if的值是0，所以这里不用看
 void joystickHandler(const sensor_msgs::Joy::ConstPtr &joy) {
   if (joy->buttons[5] > 0.5) {
     noDataInited = 0;
@@ -183,14 +194,15 @@ void joystickHandler(const sensor_msgs::Joy::ConstPtr &joy) {
   }
 }
 
-// cloud clearing callback function
+// cloud clearing callback function，留给用户使用
 void clearingHandler(const std_msgs::Float32::ConstPtr &dis) {
   noDataInited = 0;
   clearingDis = dis->data;
   clearingCloud = true;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   ros::init(argc, argv, "terrainAnalysis");
   ros::NodeHandle nh;
   ros::NodeHandle nhPrivate = ros::NodeHandle("~");
@@ -246,16 +258,18 @@ int main(int argc, char **argv) {
   bool status = ros::ok();
   while (status) {
     ros::spinOnce();
-
+    // laserCloudHandler 回调之后
     if (newlaserCloud) {
       newlaserCloud = false;
 
-      // terrain voxel roll over
+      // terrain voxel roll over，按默认值，这两个变量开始都是0
       float terrainVoxelCenX = terrainVoxelSize * terrainVoxelShiftX;
       float terrainVoxelCenY = terrainVoxelSize * terrainVoxelShiftY;
 
-      while (vehicleX - terrainVoxelCenX < -terrainVoxelSize) {
-        for (int indY = 0; indY < terrainVoxelWidth; indY++) {
+      while (vehicleX - terrainVoxelCenX < -terrainVoxelSize)
+      {
+        for (int indY = 0; indY < terrainVoxelWidth; indY++)
+        {
           pcl::PointCloud<pcl::PointXYZI>::Ptr terrainVoxelCloudPtr =
               terrainVoxelCloud[terrainVoxelWidth * (terrainVoxelWidth - 1) +
                                 indY];
@@ -270,8 +284,10 @@ int main(int argc, char **argv) {
         terrainVoxelCenX = terrainVoxelSize * terrainVoxelShiftX;
       }
 
-      while (vehicleX - terrainVoxelCenX > terrainVoxelSize) {
-        for (int indY = 0; indY < terrainVoxelWidth; indY++) {
+      while (vehicleX - terrainVoxelCenX > terrainVoxelSize)
+      {
+        for (int indY = 0; indY < terrainVoxelWidth; indY++)
+        {
           pcl::PointCloud<pcl::PointXYZI>::Ptr terrainVoxelCloudPtr =
               terrainVoxelCloud[indY];
           for (int indX = 0; indX < terrainVoxelWidth - 1; indX++) {
@@ -287,8 +303,10 @@ int main(int argc, char **argv) {
         terrainVoxelCenX = terrainVoxelSize * terrainVoxelShiftX;
       }
 
-      while (vehicleY - terrainVoxelCenY < -terrainVoxelSize) {
-        for (int indX = 0; indX < terrainVoxelWidth; indX++) {
+      while (vehicleY - terrainVoxelCenY < -terrainVoxelSize)
+      {
+        for (int indX = 0; indX < terrainVoxelWidth; indX++)
+        {
           pcl::PointCloud<pcl::PointXYZI>::Ptr terrainVoxelCloudPtr =
               terrainVoxelCloud[terrainVoxelWidth * indX +
                                 (terrainVoxelWidth - 1)];
@@ -303,8 +321,10 @@ int main(int argc, char **argv) {
         terrainVoxelCenY = terrainVoxelSize * terrainVoxelShiftY;
       }
 
-      while (vehicleY - terrainVoxelCenY > terrainVoxelSize) {
-        for (int indX = 0; indX < terrainVoxelWidth; indX++) {
+      while (vehicleY - terrainVoxelCenY > terrainVoxelSize)
+      {
+        for (int indX = 0; indX < terrainVoxelWidth; indX++)
+        {
           pcl::PointCloud<pcl::PointXYZI>::Ptr terrainVoxelCloudPtr =
               terrainVoxelCloud[terrainVoxelWidth * indX];
           for (int indY = 0; indY < terrainVoxelWidth - 1; indY++) {
@@ -320,36 +340,40 @@ int main(int argc, char **argv) {
         terrainVoxelCenY = terrainVoxelSize * terrainVoxelShiftY;
       }
 
+
+
       // stack registered laser scans
-      pcl::PointXYZI point;
+      pcl::PointXYZI  point;
       int laserCloudCropSize = laserCloudCrop->points.size();
-      for (int i = 0; i < laserCloudCropSize; i++) {
+      for (int i = 0; i < laserCloudCropSize; i++)
+      {
         point = laserCloudCrop->points[i];
 
-        int indX = int((point.x - vehicleX + terrainVoxelSize / 2) /
-                       terrainVoxelSize) +
-                   terrainVoxelHalfWidth;
-        int indY = int((point.y - vehicleY + terrainVoxelSize / 2) /
-                       terrainVoxelSize) +
-                   terrainVoxelHalfWidth;
+        int indX = int( (point.x - vehicleX + terrainVoxelSize / 2) /
+                       terrainVoxelSize) +  terrainVoxelHalfWidth;
+        int indY = int( (point.y - vehicleY + terrainVoxelSize / 2) /
+                       terrainVoxelSize) +  terrainVoxelHalfWidth;
 
         if (point.x - vehicleX + terrainVoxelSize / 2 < 0)
-          indX--;
+            indX-- ;
         if (point.y - vehicleY + terrainVoxelSize / 2 < 0)
-          indY--;
+            indY-- ;
 
-        if (indX >= 0 && indX < terrainVoxelWidth && indY >= 0 &&
-            indY < terrainVoxelWidth) {
+        if ( indX >= 0 && indX < terrainVoxelWidth && indY >= 0 &&
+             indY < terrainVoxelWidth )
+        {
           terrainVoxelCloud[terrainVoxelWidth * indX + indY]->push_back(point);
           terrainVoxelUpdateNum[terrainVoxelWidth * indX + indY]++;
         }
       }
 
-      for (int ind = 0; ind < terrainVoxelNum; ind++) {
+      for (int ind = 0; ind < terrainVoxelNum; ind++)
+      {
         if (terrainVoxelUpdateNum[ind] >= voxelPointUpdateThre ||
             laserCloudTime - systemInitTime - terrainVoxelUpdateTime[ind] >=
                 voxelTimeUpdateThre ||
-            clearingCloud) {
+            clearingCloud)
+        {
           pcl::PointCloud<pcl::PointXYZI>::Ptr terrainVoxelCloudPtr =
               terrainVoxelCloud[ind];
 
@@ -380,15 +404,18 @@ int main(int argc, char **argv) {
 
       terrainCloud->clear();
       for (int indX = terrainVoxelHalfWidth - 5;
-           indX <= terrainVoxelHalfWidth + 5; indX++) {
+           indX <= terrainVoxelHalfWidth + 5; indX++)
+      {
         for (int indY = terrainVoxelHalfWidth - 5;
-             indY <= terrainVoxelHalfWidth + 5; indY++) {
+             indY <= terrainVoxelHalfWidth + 5; indY++)
+        {
           *terrainCloud += *terrainVoxelCloud[terrainVoxelWidth * indX + indY];
         }
       }
 
       // estimate ground and compute elevation for each point
-      for (int i = 0; i < planarVoxelNum; i++) {
+      for (int i = 0; i < planarVoxelNum; i++)
+      {
         planarVoxelElev[i] = 0;
         planarVoxelEdge[i] = 0;
         planarVoxelDyObs[i] = 0;
@@ -396,7 +423,8 @@ int main(int argc, char **argv) {
       }
 
       int terrainCloudSize = terrainCloud->points.size();
-      for (int i = 0; i < terrainCloudSize; i++) {
+      for (int i = 0; i < terrainCloudSize; i++)
+      {
         point = terrainCloud->points[i];
 
         int indX =
@@ -518,7 +546,8 @@ int main(int argc, char **argv) {
             }
           }
         }
-      } else {
+      }
+      else {
         for (int i = 0; i < planarVoxelNum; i++) {
           int planarPointElevSize = planarPointElev[i].size();
           if (planarPointElevSize > 0) {
@@ -578,7 +607,8 @@ int main(int argc, char **argv) {
         }
       }
 
-      if (noDataObstacle && noDataInited == 2) {
+      if (noDataObstacle && noDataInited == 2)
+      {
         for (int i = 0; i < planarVoxelNum; i++) {
           int planarPointElevSize = planarPointElev[i].size();
           if (planarPointElevSize < minBlockPointNum) {
@@ -646,7 +676,7 @@ int main(int argc, char **argv) {
       sensor_msgs::PointCloud2 terrainCloud2;
       pcl::toROSMsg(*terrainCloudElev, terrainCloud2);
       terrainCloud2.header.stamp = ros::Time().fromSec(laserCloudTime);
-      terrainCloud2.header.frame_id = "map";
+      terrainCloud2.header.frame_id = "/map";
       pubLaserCloud.publish(terrainCloud2);
     }
 

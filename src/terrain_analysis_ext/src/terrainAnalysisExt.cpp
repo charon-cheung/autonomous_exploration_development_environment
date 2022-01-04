@@ -104,6 +104,7 @@ void odometryHandler(const nav_msgs::Odometry::ConstPtr& odom)
 }
 
 // registered laser scan callback function
+// 同 terrainAnalysis.cpp 的laserCloudHandler 完全一样
 void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloud2)
 {
   laserCloudTime = laserCloud2->header.stamp.toSec();
@@ -143,14 +144,14 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloud2)
   newlaserCloud = true;
 }
 
-// local terrain cloud callback function
+//转换 terrainAnalysis.cpp发布的 terrain_map为 pcl::PointCloud<pcl::PointXYZI>::Ptr
 void terrainCloudLocalHandler(const sensor_msgs::PointCloud2ConstPtr& terrainCloudLocal2)
 {
   terrainCloudLocal->clear();
   pcl::fromROSMsg(*terrainCloudLocal2, *terrainCloudLocal);
 }
 
-// joystick callback function
+// 同 terrainAnalysis.cpp 的同名函数几乎一样
 void joystickHandler(const sensor_msgs::Joy::ConstPtr& joy)
 {
   if (joy->buttons[5] > 0.5)
@@ -159,7 +160,7 @@ void joystickHandler(const sensor_msgs::Joy::ConstPtr& joy)
   }
 }
 
-// cloud clearing callback function
+// 同 terrainAnalysis.cpp 的同名函数几乎一样
 void clearingHandler(const std_msgs::Float32::ConstPtr& dis)
 {
   clearingDis = dis->data;
@@ -532,7 +533,7 @@ int main(int argc, char** argv)
       sensor_msgs::PointCloud2 terrainCloud2;
       pcl::toROSMsg(*terrainCloudElev, terrainCloud2);
       terrainCloud2.header.stamp = ros::Time().fromSec(laserCloudTime);
-      terrainCloud2.header.frame_id = "map";
+      terrainCloud2.header.frame_id = "/map";
       pubTerrainCloud.publish(terrainCloud2);
     }
 
